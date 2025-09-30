@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Farmer Register</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f4f4f4;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      text-align: center;
+    }
+
+    .card {
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-width: 400px;
+      margin: auto;
+    }
+
+    input {
+      display: block;
+      width: 80%;
+      padding: 10px;
+      margin: 10px auto;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 10px auto;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      display: block;
+      width: 80%;
+    }
+
+    #register {
+      background-color: #28a745;
+      color: white;
+    }
+
+    #backToLogin {
+      background-color: #007bff;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Register as Farmer</h1>
+    <div class="card">
+      <input id="name" placeholder="Full name" />
+      <input id="phone" placeholder="Phone" />
+      <button id="register">Register</button>
+      <button id="backToLogin">Back to Login</button>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:4000/api';
+
+    document.getElementById('register').addEventListener('click', async () => {
+      const name = document.getElementById('name').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+
+      if (!name || !phone) {
+        alert('Please fill in all fields.');
+        return;
+      }
+
+      const form = new FormData();
+      form.append('name', name);
+      form.append('phone', phone);
+
+      try {
+        const res = await fetch(API + '/admin/farmers', {
+          method: 'POST',
+          body: form
+        });
+
+        const data = await res.json();
+
+        if (data._id) {
+          alert('Registered. Save your phone to login.');
+          location.href = 'farmer-login.html';
+        } else {
+          alert('Register failed');
+        }
+      } catch (err) {
+        alert('Server error. Please try again later.');
+        console.error(err);
+      }
+    });
+
+    // Back to login button
+    document.getElementById('backToLogin').addEventListener('click', () => {
+      location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

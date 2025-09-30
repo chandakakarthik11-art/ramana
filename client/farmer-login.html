@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Farmer Login</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Farmer Login</h1>
+    <div class="card">
+      <input id="phone" placeholder="Phone" />
+      <button id="login">Login</button>
+      <p><a href="index.html">Back to Login</a></p>
+    </div>
+  </div>
+<script>
+const API = 'http://localhost:4000/api';
+document.getElementById('login').addEventListener('click', async ()=>{
+  const phone = document.getElementById('phone').value;
+  const res = await fetch(API + '/auth/farmer/login', {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ phone })
+  });
+  const data = await res.json();
+  if(data.farmer){
+    localStorage.setItem('farmerId', data.farmer._id);
+    location.href = 'farmer.html';
+  }else alert('Not found');
+});
+</script>
+</body>
+</html>

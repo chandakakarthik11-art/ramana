@@ -1,0 +1,141 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title> Rmana Tractor service - Login</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f4f4f4;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      text-align: center;
+    }
+
+    .card {
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      max-width: 400px;
+      margin: auto;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    input {
+      display: block;
+      width: 80%;
+      padding: 10px;
+      margin: 10px auto;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 10px auto;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      display: block;
+      width: 80%;
+    }
+
+    #showAdminForm {
+      background-color: #007bff;
+      color: white;
+    }
+
+    #adminLogin {
+      background-color: #28a745;
+      color: white;
+    }
+
+    #farmerRegisterBtn {
+      background-color: #ffc107;
+      color: black;
+    }
+
+    .btn-group button:last-child {
+      background-color: #17a2b8;
+      color: white;
+    }
+
+    .btn-group {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Tractor Tracker</h1>
+    <div class="card">
+      <h2>Login</h2>
+
+      <!-- Admin Section -->
+      <div id="adminSection">
+        <button id="showAdminForm">Admin Login</button>
+
+        <div id="adminForm" class="hidden">
+          <input id="adminUser" placeholder="username" />
+          <input id="adminPass" placeholder="password" type="password" />
+          <button id="adminLogin">Submit</button>
+        </div>
+      </div>
+
+      <!-- Farmer Buttons -->
+      <div class="btn-group">
+        <button id="farmerRegisterBtn">Farmer Register</button>
+        <button onclick="location.href='farmer-login.html'">Farmer Login</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const API = 'http://localhost:4000/api';
+
+// Show admin login form
+document.getElementById('showAdminForm').addEventListener('click', () => {
+  document.getElementById('adminForm').classList.remove('hidden');
+  document.getElementById('showAdminForm').classList.add('hidden');
+});
+
+// Admin login
+document.getElementById('adminLogin').addEventListener('click', async () => {
+  const username = document.getElementById('adminUser').value;
+  const password = document.getElementById('adminPass').value;
+
+  const res = await fetch(API + '/auth/admin/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+
+  const data = await res.json();
+
+  if (data.token) {
+    localStorage.setItem('adminToken', data.token);
+    location.href = 'admin.html';
+  } else {
+    alert(data.error || 'Login failed');
+  }
+});
+
+// ✅ Farmer Register without admin password
+document.getElementById('farmerRegisterBtn').addEventListener('click', () => {
+  location.href = 'register.html';
+});
+</script>
+</body>
+</html>

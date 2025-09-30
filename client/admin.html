@@ -1,0 +1,241 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align:left; }
+    th { background: #f4f4f4; }
+    input[type="number"]{ width: 100px; }
+    #logout {
+      float: right;
+      margin-top: 10px;
+      padding: 6px 12px;
+      background: #e74c3c;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+    }
+    #logout:hover {
+      background: #c0392b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Admin Dashboard <a href="index.html" id="logout">Logout</a></h1>
+
+    <div class="card">
+      <!-- Removed Load Farmers button and farmer list -->
+
+      <h3>Add Work Entry</h3>
+      <select id="farmerSelect"></select><br/>
+      <select id="workType">
+        <option value="">-- Select Work Type --</option>
+        <option>దుక్కు</option>
+        <option>లోడింగ్</option>
+        <option>రోటావేటర్</option>
+        <option> </option>
+        <option>దమ్ము</option>
+        <option>జొన్నలు</option>
+        <option>వరిసేను ఆట</option>
+        <option>గత్తం</option>
+      </select>
+      <input id="minutes" placeholder="Time (e.g., 1.2 means 1 hour 20 minutes)" type="text" />
+      <input id="rate" placeholder="Rate per 60" type="number" />
+      <button id="addWork">Add Work</button>
+
+      <h3>All Work</h3>
+      <select id="farmerSelectFilter">
+        <option value="">-- Select Farmer --</option>
+      </select>
+      <button id="viewHistory">View Farmer History</button>
+
+      <div id="works">
+        <table id="worksTable">
+          <thead>
+            <tr>
+              <th>Farmer</th>
+              <th>Date</th>
+              <th>Work Type</th>
+              <th>Minutes</th>
+              <th>Rate per 60</th>
+              <th>Total Amount</th>
+              <th>Payment Given</th>
+              <th>Make Payment</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+const API = 'http://localhost:4000/api';
+function token(){ return localStorage.getItem('adminToken'); }
+
+// Automatically load farmers on page load
+async function loadFarmers(){
+  const res = await fetch(API + '/admin/farmers', { headers: { Authorization: 'Bearer ' + token() }});
+  const list = await res.json();
+  document.getElementById('farmerSelect').innerHTML = '<option value="">choose</option>' + list.map(f=>`<option value="${f._id}">${f.name} (${f.phone})</option>`).join('');
+  document.getElementById('farmerSelectFilter').innerHTML = '<option value="">-- Select Farmer --</option>' + list.map(f=>`<option value="${f._id}">${f.name} (${f.phone})</option>`).join('');
+  
+  // Optionally load works for first farmer or leave empty
+  loadWorks();
+}
+
+// Redirect to farmer history
+document.getElementById('viewHistory').addEventListener('click', ()=>{
+  const id = document.getElementById('farmerSelectFilter').value;
+  if(!id) return alert('Select a farmer first');
+  localStorage.setItem('farmerId', id);
+  location.href = 'farmer.html';
+});
+
+// Add work
+document.getElementById('addWork').addEventListener('click', async ()=>{
+  const farmerId = document.getElementById('farmerSelect').value;
+  if(!farmerId) { alert('Please select a farmer'); return; }
+  const workType = document.getElementById('workType').value;
+  if(!workType) { alert('Please select work type'); return; }
+  const timeStr = document.getElementById('minutes').value.trim();
+  let minutes = 0;
+  if(timeStr.includes('.')){
+    const [h,m] = timeStr.split('.').map(Number);
+    minutes = (h||0)*60 + (m||0);
+  } else {
+    minutes = Number(timeStr) || 0;
+  }
+  if(minutes <= 0) { alert('Enter valid time'); return; }
+  const ratePer60 = Number(document.getElementById('rate').value);
+  if(!ratePer60 || ratePer60 <= 0) { alert('Enter valid rate'); return; }
+  await fetch(API + '/admin/work', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + token() },
+    body: JSON.stringify({ farmerId, workType, minutes, ratePer60 })
+  });
+  alert('Added');
+  loadWorks();
+});
+
+// Load works when farmer filter changes
+document.getElementById('farmerSelectFilter').addEventListener('change', loadWorks);
+
+async function loadWorks(){
+  const selectedFarmer = document.getElementById('farmerSelectFilter').value;
+  const tbody = document.querySelector('#worksTable tbody');
+  tbody.innerHTML = '';
+  if(!selectedFarmer) return;
+  const url = API + '/admin/work?farmerId=' + selectedFarmer;
+  const res = await fetch(url, { headers:{ Authorization: 'Bearer ' + token() }});
+  const ws = await res.json();
+
+  let totalWork = 0, totalPaid = 0;
+  if(ws && ws.length){
+    ws.forEach(w=>{
+      totalWork += w.totalAmount || 0;
+      totalPaid += w.paymentGiven || 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${w.farmer?.name||'--'}</td>
+        <td>${new Date(w.date).toLocaleDateString('en-IN')}</td>
+        <td>${w.workType}</td>
+        <td>${w.minutes}</td>
+        <td>${w.ratePer60 || 0}</td>
+        <td>₹${(w.totalAmount||0).toFixed(2)}</td>
+        <td>₹${(w.paymentGiven||0).toFixed(2)}</td>
+        <td>
+          <input type="number" id="pay_${w._id}" placeholder="amount" />
+          <button onclick="makePayment('${w._id}','${w.farmer?._id||''}')">Pay</button>
+        </td>
+        <td>
+          <button onclick="edit('${w._id}')">Edit</button>
+          <button onclick="delWork('${w._id}')">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Totals row
+    const balance = totalWork - totalPaid;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td colspan="5"><strong>Totals</strong></td>
+      <td><strong>₹${totalWork.toFixed(2)}</strong></td>
+      <td><strong>₹${totalPaid.toFixed(2)}</strong></td>
+      <td colspan="2"><strong>Balance: ₹${balance.toFixed(2)}</strong></td>
+    `;
+    tbody.appendChild(tr);
+
+  } else {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td colspan="9">No records</td>';
+    tbody.appendChild(tr);
+  }
+}
+
+// Payment
+window.makePayment = async function(workId, farmerId){
+  const inp = document.getElementById('pay_' + workId);
+  const amt = Number(inp.value);
+  if(!amt || amt <= 0){ alert('Enter valid amount'); return; }
+  try {
+    const res = await fetch(API + '/admin/payment/' + farmerId, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() },
+      body: JSON.stringify({ amount: amt, workId })
+    });
+    const data = await res.json();
+    if(data.success){
+      alert('Payment recorded');
+      loadWorks();
+    } else {
+      alert('Payment failed');
+    }
+  } catch(e){
+    alert('Error: ' + e.message);
+  }
+}
+
+// Edit work
+window.edit = async function(id){
+  const workType = prompt('Work type (leave blank to keep)');
+  const minutes = prompt('Minutes (enter number)');
+  const rate = prompt('Rate per 60');
+  const paid = prompt('Payment Given (current will be replaced if entered)');
+  const body = {};
+  if(workType) body.workType = workType;
+  if(minutes) body.minutes = Number(minutes);
+  if(rate) body.ratePer60 = Number(rate);
+  if(paid) body.paymentGiven = Number(paid);
+  await fetch(API + '/admin/work/' + id, {
+    method:'PUT', headers:{ 'Content-Type':'application/json', Authorization: 'Bearer ' + token() },
+    body: JSON.stringify(body)
+  });
+  alert('Updated');
+  loadWorks();
+}
+
+// Delete work
+window.delWork = async function(id){
+  if(!confirm('Delete work?')) return;
+  await fetch(API + '/admin/work/' + id, { method:'DELETE', headers:{ Authorization: 'Bearer ' + token() }});
+  loadWorks();
+}
+
+// Logout
+document.getElementById('logout').addEventListener('click', ()=>{
+  localStorage.removeItem('adminToken');
+});
+
+// Load farmers automatically on page load
+window.addEventListener('DOMContentLoaded', loadFarmers);
+
+</script>
+</body>
+</html>
